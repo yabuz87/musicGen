@@ -1,8 +1,8 @@
 import unittest
 
+from core_types import BeatState
 from rhythm_features import (
     DEFAULT_METERS,
-    BeatState,
     MeterSpec,
     W_BOUNDARY_ON_STRONG,
     W_BOUNDARY_ON_WEAK_PENALTY,
@@ -91,4 +91,3 @@ class TestRhythmScoring(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

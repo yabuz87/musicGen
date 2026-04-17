@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict, Optional, Sequence
+from typing import Mapping, Optional, Sequence
+
+from core_types import BeatState
+from vocab import DEFAULT_VOCABULARIES, MeterToken
 
 # ---------------------------------------------------------------------
 # Rhythm / BeatState scoring weights (GTTM-inspired "energies")
@@ -27,51 +29,11 @@ W_STRONG_BEAT_BIAS = 0.15
 W_ILLEGAL_BEAT_PENALTY = 2.0
 
 
-# ---------------------------------------------------------------------
-# Beat-level structural state (README St)
-# ---------------------------------------------------------------------
-
-@dataclass(frozen=True)
-class BeatState:
-    """Beat-level structural state (README: St).
-
-    The README defines St as:
-      (meter_id, beat_in_bar, boundary_lvl, key_id, chord_id, role_id, head_id, groove_id)
-    """
-
-    meter_id: int
-    beat_in_bar: int
-    boundary_lvl: int
-    key_id: int
-    chord_id: int
-    role_id: int
-    head_id: int
-    groove_id: int
+MeterSpec = MeterToken
+DEFAULT_METERS: Mapping[int, MeterSpec] = DEFAULT_VOCABULARIES.meters.id_map
 
 
-# ---------------------------------------------------------------------
-# Meter specification
-# ---------------------------------------------------------------------
-
-@dataclass(frozen=True)
-class MeterSpec:
-    """Minimal meter descriptor.
-
-    For now we only need beats_per_bar to score strong/weak positions.
-    """
-
-    beats_per_bar: int
-
-
-DEFAULT_METERS: Dict[int, MeterSpec] = {
-    0: MeterSpec(beats_per_bar=4),  # 4/4
-    1: MeterSpec(beats_per_bar=3),  # 3/4
-    2: MeterSpec(beats_per_bar=5),  # 5/4
-    3: MeterSpec(beats_per_bar=7),  # 7/4
-}
-
-
-def beats_per_bar(meter_id: int, meters: Optional[Dict[int, MeterSpec]] = None) -> int:
+def beats_per_bar(meter_id: int, meters: Optional[Mapping[int, MeterSpec]] = None) -> int:
     m = DEFAULT_METERS if meters is None else meters
     spec = m.get(meter_id)
     if spec is None:
@@ -95,19 +57,19 @@ def is_strong_beat(beat_in_bar: int, bpb: int) -> bool:
     return False
 
 
-def illegal_beat_penalty(st: BeatState, meters: Optional[Dict[int, MeterSpec]] = None) -> float:
+def illegal_beat_penalty(st: BeatState, meters: Optional[Mapping[int, MeterSpec]] = None) -> float:
     bpb = beats_per_bar(st.meter_id, meters)
     if st.beat_in_bar < 0 or st.beat_in_bar >= bpb:
         return -W_ILLEGAL_BEAT_PENALTY
     return 0.0
 
 
-def strong_beat_bias(st: BeatState, meters: Optional[Dict[int, MeterSpec]] = None) -> float:
+def strong_beat_bias(st: BeatState, meters: Optional[Mapping[int, MeterSpec]] = None) -> float:
     bpb = beats_per_bar(st.meter_id, meters)
     return W_STRONG_BEAT_BIAS if is_strong_beat(st.beat_in_bar, bpb) else 0.0
 
 
-def boundary_score(st: BeatState, meters: Optional[Dict[int, MeterSpec]] = None) -> float:
+def boundary_score(st: BeatState, meters: Optional[Mapping[int, MeterSpec]] = None) -> float:
     """Score a boundary placement for a single beat.
 
     boundary_lvl is treated as an intensity: 0 = no boundary, higher = stronger.
@@ -121,7 +83,7 @@ def boundary_score(st: BeatState, meters: Optional[Dict[int, MeterSpec]] = None)
     return -W_BOUNDARY_ON_WEAK_PENALTY * float(st.boundary_lvl)
 
 
-def transition_score(a: BeatState, b: BeatState, meters: Optional[Dict[int, MeterSpec]] = None) -> float:
+def transition_score(a: BeatState, b: BeatState, meters: Optional[Mapping[int, MeterSpec]] = None) -> float:
     """Score the transition a -> b.
 
     This is meant to be a light-weight analogue to gttm_features.transition_score:
@@ -154,7 +116,7 @@ def transition_score(a: BeatState, b: BeatState, meters: Optional[Dict[int, Mete
 
 
 def local_window_score(prev: Optional[BeatState], curr: BeatState, next_: Optional[BeatState],
-                       meters: Optional[Dict[int, MeterSpec]] = None) -> float:
+                       meters: Optional[Mapping[int, MeterSpec]] = None) -> float:
     """A tiny 3-beat window score.
 
     Rewards plausible "grouping" behavior:
@@ -177,7 +139,7 @@ def local_window_score(prev: Optional[BeatState], curr: BeatState, next_: Option
     return (onset_bonus + next_strong) * float(curr.boundary_lvl)
 
 
-def sequence_score(seq: Sequence[BeatState], meters: Optional[Dict[int, MeterSpec]] = None) -> float:
+def sequence_score(seq: Sequence[BeatState], meters: Optional[Mapping[int, MeterSpec]] = None) -> float:
     if len(seq) < 2:
         return 0.0
 
@@ -187,4 +149,3 @@ def sequence_score(seq: Sequence[BeatState], meters: Optional[Dict[int, MeterSpe
         for i in range(1, len(seq) - 1)
     )
     return float(total)
-
