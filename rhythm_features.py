@@ -3,21 +3,21 @@ from __future__ import annotations
 from typing import Mapping, Optional, Sequence
 
 from core_types import BeatState
-from gttm_features import (
-    DEFAULT_METERS,  # noqa: F401
+from gttm_features import (  # noqa: F401
+    DEFAULT_METERS,
     MeterSpec,
-    W_BOUNDARY_ON_STRONG,  # noqa: F401
-    W_BOUNDARY_ON_WEAK_PENALTY,  # noqa: F401
+    W_BOUNDARY_ON_STRONG,
+    W_BOUNDARY_ON_WEAK_PENALTY,
     W_GROOVE_CONTINUITY,
-    W_ILLEGAL_BEAT_PENALTY,  # noqa: F401
+    W_ILLEGAL_BEAT_PENALTY,
     W_METER_STABILITY,
-    W_STRONG_BEAT_BIAS,  # noqa: F401
+    W_STRONG_BEAT_BIAS,
     beat_position_penalty,
-    beats_per_bar,  # noqa: F401
+    beats_per_bar,
     boundary_alignment_score,
     groove_continuity_feature,
     grouping_window_score,
-    is_strong_beat,  # noqa: F401
+    is_strong_beat,
     meter_stability_feature,
     strong_beat_alignment,
 )
