@@ -655,6 +655,40 @@ def build_section_plan(run_config: MethodARunConfig) -> Tuple[PlanningSection, .
     return plan
 
 
+def build_executable_section_timeline(
+    run_config: MethodARunConfig,
+    vocabularies: Vocabularies,
+) -> tuple[SectionTimeline, Tuple[str, ...]]:
+    """Build and validate the section timeline used by production planning.
+
+    Authored section boundaries must already align with a single-meter plan.
+    Automatically partitioned sections are snapped to downbeats. Multi-meter
+    alignment remains a soft target because its bar positions depend on the
+    selected path.
+    """
+    sections = (
+        run_config.sections
+        if run_config.sections is not None
+        else build_section_plan(run_config)
+    )
+    timeline = SectionTimeline(
+        sections=sections,
+        total_beats=run_config.total_beats,
+        edo=run_config.edo,
+        multi_meter=len(run_config.style_config.allowed_meters) > 1,
+    )
+    validation = timeline.validate_executable(
+        run_config.style_config,
+        vocabularies,
+        snap_to_bars=run_config.sections is None,
+    )
+    if run_config.sections is None:
+        timeline, messages = validation
+    else:
+        messages = validation
+    return timeline, tuple(messages)
+
+
 def _meter_ids(style_config: StyleConfig, vocabularies: Vocabularies) -> Tuple[int, ...]:
     ids = []
     for signature in style_config.allowed_meters:
@@ -1141,17 +1175,13 @@ def run_method_a(
         "decoder.comping", "decoder.bass", "decoder.lead", "decoder.drums",
     )
     streams, next_key = allocate_named_keys(key, stream_ids)
-    resolved_sections = (
-        run_config.sections
-        if run_config.sections is not None
-        else build_section_plan(run_config)
+    timeline, validation_messages = build_executable_section_timeline(
+        run_config,
+        resolved_vocabs,
     )
-    timeline = SectionTimeline(
-        sections=resolved_sections,
-        total_beats=run_config.total_beats,
-        edo=run_config.edo,
-        multi_meter=len(run_config.style_config.allowed_meters) > 1,
-    )
+    resolved_sections = timeline.sections
+    for message in validation_messages:
+        _logger.warning(message)
     endpoints, _ = generate_method_a_endpoints(
         run_config,
         vocabularies=resolved_vocabs,
